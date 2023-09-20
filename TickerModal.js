@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Modal, Button, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
+import { View, Text, Modal, Button, StyleSheet, Dimensions, TouchableOpacity, Image } from 'react-native';
 import { checkRateLimit } from './utils';
 import { LineChart } from 'react-native-chart-kit';
 import * as Font from 'expo-font';
-
 
 
 const TickerModal = ({ visible, tickerData, onClose, navigation }) => {
     const [candleData, setCandleData] = useState([]);
     const [transformedData, setTransformedData] = useState(null);
     const [fontLoaded, setFontLoaded] = useState(false);
+    const [candlestickImage, setCandlestickImage] = useState(null);
 
+
+    console.log("TickerModal rendered with visible:", visible, "and tickerData:", tickerData);
 
     useEffect(() => {
         loadFontAsync();
@@ -22,17 +24,36 @@ const TickerModal = ({ visible, tickerData, onClose, navigation }) => {
         });
         setFontLoaded(true);
     };
-
     useEffect(() => {
-        if (visible && tickerData.length > 0) {
-            // Construct endpoint URL
+        console.log('Modal visibility:', visible);
+        if (visible && tickerData[0]) {
             const candleEndpoint = `https://api-pub.bitfinex.com/v2/candles/trade:1h:${tickerData[0]}/hist?limit=100`;
             fetch(candleEndpoint)
                 .then(checkRateLimit)
                 .then(response => response.json())
                 .then(data => {
+                    console.log("Candle Data:", data);
                     setCandleData(data);
+                    // Sending the data to your backend to generate the image:
+                    fetch('http://192.168.68.109:5000/generate-candlestick', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            data: data,
+                            ticker: tickerData[0]
+                        })
+                    })
+                        .then(response => response.json())
+                        .then(json => {
+                            const imageUrl = `http://192.168.68.109:5000${json.image_url}`;
+                            console.log(imageUrl)
+                            setCandlestickImage(imageUrl);
+                        })
+                        .catch(error => console.error("Error fetching image:", error));
                 })
+
                 .catch(error => console.error("Error fetching candle data:", error));
         }
     }, [visible, tickerData]);
@@ -56,6 +77,9 @@ const TickerModal = ({ visible, tickerData, onClose, navigation }) => {
             setTransformedData(transformedData);
         }
     }, [candleData]);
+    if (!fontLoaded) {
+        return null;
+    }
 
 
     return (
@@ -70,22 +94,12 @@ const TickerModal = ({ visible, tickerData, onClose, navigation }) => {
                     <Text style={styles.modalTitle}>Ticker Details</Text>
                     {/* Display ticker details here. Adjust according to your data structure. */}
                     <Text style={styles.modalTitle}>Ticker: {tickerData[0]}</Text>
-                    {transformedData &&
-                        <LineChart
-                            data={transformedData}
-                            width={Dimensions.get("window").width - 16}
-                            height={200}
-                            verticalLabelRotation={110} //Degree to rotate
-                            chartConfig={{
-                                backgroundColor: '#152330',
-                                backgroundGradientFrom: '#152330',
-                                backgroundGradientTo: '#3E92CC',  // Light blue
-                                decimalPlaces: 2,
-                                color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-                                labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-                            }}
-                            bezier
-                        />
+                    {
+                        candlestickImage ?
+                            <Image source={{ uri: candlestickImage }
+                            } style={{ width: Dimensions.get("window").width - 10, height: 250 }} />
+                            :
+                            <Text>Loading Candlestick Chart...</Text>
                     }
                     {/* Close button */}
                     <TouchableOpacity

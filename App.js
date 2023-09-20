@@ -5,6 +5,7 @@ import { checkRateLimit } from './utils';
 import TickerModal from './TickerModal'; // Adjust path if needed
 import { fetchCoinGeckoData } from './coinGeckoUtils';
 
+
 export default function App({ navigation }) {
   const [tickers, setTickers] = useState([]);
   const [page, setPage] = useState(1);
@@ -47,7 +48,10 @@ export default function App({ navigation }) {
       await checkRateLimit(response);
       const data = await response.json();
       if (Array.isArray(data)) {
-        const usdTickers = data.filter(tickerData => tickerData[0].endsWith('USD'));
+        const usdTickers = data.filter(tickerData => tickerData[0].endsWith('USD')).map(ticker => ({
+          ...ticker,
+          isFavorite: false
+        }));
         setTickers(usdTickers);
       } else {
         console.error('Invalid API response:', data);
@@ -56,6 +60,29 @@ export default function App({ navigation }) {
       console.error('Error fetching tickers:', error);
     }
   };
+
+  const handleModalClose = async () => {
+    setIsModalVisible(false);
+
+    // Make API call to delete temporary images
+    try {
+      const response = await fetch('http://192.168.68.109:5000/delete-temp-images', {
+        method: 'DELETE'
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log(result.message); // "Temporary images deleted successfully."
+      } else {
+        console.error("Error deleting temporary images.");
+      }
+    } catch (error) {
+      console.error("Error occurred:", error);
+    }
+  }
+
+
+
 
   const paginatedTickers = tickers.slice((page - 1) * itemsPerPage, page * itemsPerPage);
 
@@ -97,8 +124,6 @@ export default function App({ navigation }) {
         keyExtractor={(item, index) => index.toString()}
       />
 
-
-
       <View style={styles.paginationContainer}>
         <TouchableOpacity onPress={() => setPage(prevPage => Math.max(prevPage - 1, 1))} style={styles.pageButton}>
           <Text style={styles.buttonText}>Previous</Text>
@@ -112,7 +137,7 @@ export default function App({ navigation }) {
         navigation={navigation}
         visible={isModalVisible}
         tickerData={selectedTicker}
-        onClose={() => setIsModalVisible(false)}
+        onClose={handleModalClose}
       />
     </View>
   );
@@ -188,4 +213,23 @@ const styles = StyleSheet.create({
     borderWidth: 0.5,
     borderColor: '#e5e5e5'
   },
+  swipeBackView: {
+    alignItems: 'flex-end',
+    backgroundColor: '#FFA500',  // Use any desired color
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingLeft: 15
+  },
+  favoriteButton: {
+    backgroundColor: '#FF4500',  // Use any desired color
+    height: '100%',
+    justifyContent: 'center',
+    paddingHorizontal: 20
+  },
+  favoriteButtonText: {
+    color: 'white',
+    fontFamily: 'Inter'
+  },
+
 });
