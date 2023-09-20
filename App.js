@@ -1,79 +1,58 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, FlatList } from 'react-native';
-import Modal from 'react-native-modal';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
 import * as Font from 'expo-font';
-import DateTimePicker from "@react-native-community/datetimepicker";
-import * as Notifications from 'expo-notifications';
+import { checkRateLimit } from './utils';
+import TickerModal from './TickerModal'; // Adjust path if needed
+import { fetchCoinGeckoData } from './coinGeckoUtils';
 
-export default function App() {
+
+export default function App({ navigation }) {
   const [tickers, setTickers] = useState([]);
-  const [currentPage, setCurrentPage] = useState(0);
-  const [selectedTicker, setSelectedTicker] = useState('BTCUSD');
-  const [price, setPrice] = useState('');
-  const [date, setDate] = useState(new Date());
-  const [showPicker, setShowPicker] = useState(false);
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 20;
   const [fontLoaded, setFontLoaded] = useState(false);
-  const [isPickerVisible, setPickerVisible] = useState(false);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [selectedTicker, setSelectedTicker] = useState([]);
+  const [isLoading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadFontAsync(); // Load the font when the component mounts
+    const fetchData = async () => {
+      try {
+        await fetchCoinGeckoData();
+        setLoading(false);
+      } catch (error) {
+        console.error("Error fetching CoinGecko data:", error);
+        setLoading(false);  // You can also set an error state here if you wish to display an error message.
+      }
+    };
+
+    fetchData();
+  }, []);  // The empty dependency array ensures this effect runs once when the component mounts.
+
+
+  useEffect(() => {
+    loadFontAsync();
     fetchTickers();
   }, []);
 
-  const checkRateLimit = async (response) => {
-    if (response.status === 429) {
-      // You can check response headers here for more information
-      // E.g., const limitReset = response.headers.get('X-RateLimit-Reset');
-
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: "Rate Limit Hit",
-          body: "You've made too many requests. Please wait and try again later.",
-          // You can add more properties as needed
-        },
-        trigger: null, // Send the notification immediately
-      });
-    }
-  };
-
   const loadFontAsync = async () => {
     await Font.loadAsync({
-      Inter: require('./assets/fonts/Inter-Regular.ttf'), // Update with the actual font file path
+      Inter: require('./assets/fonts/Inter-Regular.ttf'),
     });
     setFontLoaded(true);
   };
 
-  const sliceTradingPairs = (pairString) => {
-    if (pairString.length > 6) {
-      return pairString.split(':');
-    } else {
-      const p = 3;
-      return Array.from({ length: pairString.length / p }, (_, i) =>
-        pairString.slice(i * p, (i + 1) * p)
-      );
-    }
-  };
-
   const fetchTickers = async () => {
     try {
-      const response = await fetch('https://api-pub.bitfinex.com/v2/conf/pub:info:pair');
+      const response = await fetch('https://api-pub.bitfinex.com/v2/tickers?symbols=ALL');
       await checkRateLimit(response);
       const data = await response.json();
       if (Array.isArray(data)) {
-        // Assuming the ticker symbols are in the first sub-array
-        const tickerSymbols = data[0].map(pairData => pairData[0]);
-        const filteredPairs = [];
-        tickerSymbols.forEach(Pair => {
-          slicedPair = sliceTradingPairs(Pair)
-          if (slicedPair[1] !== 'USD') {
-            return;
-          }
-          else {
-            filteredPairs.push(Pair);
-          }
-        });
-        console.log(filteredPairs);
-        setTickers(filteredPairs);
+        const usdTickers = data.filter(tickerData => tickerData[0].endsWith('USD')).map(ticker => ({
+          ...ticker,
+          isFavorite: false
+        }));
+        setTickers(usdTickers);
       } else {
         console.error('Invalid API response:', data);
       }
@@ -82,75 +61,84 @@ export default function App() {
     }
   };
 
-  const fetchPrice = async () => {
+  const handleModalClose = async () => {
+    setIsModalVisible(false);
+
+    // Make API call to delete temporary images
     try {
-      const end = Math.floor(date.getTime());
-      const response = await fetch(`https://api-pub.bitfinex.com/v2/trades/t${selectedTicker}/hist?end=${end}&limit=1`, {
-        headers: {
-          'accept': 'application/json',
-        },
+      const response = await fetch('http://192.168.68.109:5000/delete-temp-images', {
+        method: 'DELETE'
       });
-      await checkRateLimit(response);
-      const data = await response.json();
-      const lastTrade = data[data.length - 1];
-      const lastPrice = lastTrade[3];
-      setPrice(lastPrice);
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log(result.message); // "Temporary images deleted successfully."
+      } else {
+        console.error("Error deleting temporary images.");
+      }
     } catch (error) {
-      console.error('Error fetching price:', error);
+      console.error("Error occurred:", error);
     }
-  };
+  }
+
+
+
+
+  const paginatedTickers = tickers.slice((page - 1) * itemsPerPage, page * itemsPerPage);
 
   if (!fontLoaded) {
-    return null; // Return null while the font is loading
+    return null;
   }
+  if (isLoading) {
+    return <ActivityIndicator size="large" color="#0000ff" />;  // Adjust this loading indicator as needed.
+  }
+
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Bitfinex Testing</Text>
-      <Text style={styles.priceText}>
-        Selected Date: {date.toLocaleDateString()}
-      </Text>
-      <TouchableOpacity onPress={() => setPickerVisible(true)} style={styles.pickerButton}>
-        <Text>{selectedTicker}</Text>
-      </TouchableOpacity>
+      <Text style={styles.title}>Tickers List</Text>
+      <View></View>
+      <View style={styles.headerRow}>
+        <Text style={styles.headerText}>Ticker </Text>
+        <Text style={styles.headerText}>Last Price </Text>
+        <Text style={styles.headerText}>24h Volume </Text>
+      </View>
 
-      <Modal isVisible={isPickerVisible} onBackdropPress={() => setPickerVisible(false)}>
-        <View style={styles.modalContent}>
-          <ScrollView>
-            {tickers.map((tradingPair, index) => (
-              <TouchableOpacity key={index} onPress={() => {
-                setSelectedTicker(tradingPair);
-                setPickerVisible(false);
-              }}>
-                <Text style={styles.modalItem}>{tradingPair}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-      </Modal>
+      <FlatList
+        data={paginatedTickers}
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            onPress={() => {
+              setSelectedTicker(item);
+              setIsModalVisible(true);
+            }}
+          >
+            <View style={styles.listItem}>
+              <Text style={styles.listItemText}>{item[0]}</Text>
+              <Text style={styles.listItemText}>${parseFloat(item[7]).toFixed(2)}</Text>
+              {/* Calculate volume in terms of USD by multiplying base volume with last traded price in USD */}
+              <Text style={styles.listItemText}>${parseFloat(item[8] * item[7]).toFixed(2)}</Text>
+            </View>
+          </TouchableOpacity>
+        )}
+        keyExtractor={(item, index) => index.toString()}
+      />
 
-      {showPicker && (
-        <DateTimePicker
-          mode='date'
-          display='spinner'  // You can choose other displays like 'spinner'
-          value={date}
-          onChange={(event, selectedDate) => {
-            const currentDate = selectedDate || date;
-            setShowPicker(false);
-            setDate(currentDate);
-          }}
-        />
-      )}
-      <TouchableOpacity onPress={() => setShowPicker(true)} style={styles.button}>
-        <Text style={styles.buttonText}>Select Date</Text>
-      </TouchableOpacity>
-      <TouchableOpacity onPress={fetchPrice} style={styles.button}>
-        <Text style={styles.buttonText}>Fetch Price</Text>
-      </TouchableOpacity>
-      <Text style={styles.priceText}>
-        Price on Selected Date: ${price}
-      </Text>
-
+      <View style={styles.paginationContainer}>
+        <TouchableOpacity onPress={() => setPage(prevPage => Math.max(prevPage - 1, 1))} style={styles.pageButton}>
+          <Text style={styles.buttonText}>Previous</Text>
+        </TouchableOpacity>
+        <Text style={styles.pageNumber}>{page}</Text>
+        <TouchableOpacity onPress={() => setPage(prevPage => prevPage + 1)} style={styles.pageButton}>
+          <Text style={styles.buttonText}>Next</Text>
+        </TouchableOpacity>
+      </View>
+      <TickerModal
+        navigation={navigation}
+        visible={isModalVisible}
+        tickerData={selectedTicker}
+        onClose={handleModalClose}
+      />
     </View>
   );
 }
@@ -162,49 +150,86 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#152330',
   },
-  title: {
-    fontFamily: 'Inter',
-    fontSize: 30,
-    color: 'white',
-    marginBottom: 20,
-  },
-  priceText: {
-    fontFamily: 'Inter',
-    fontSize: 24,
-    color: 'white',
-    marginBottom: 20,
-  },
-  button: {
-    backgroundColor: '#4CAF50',
-    borderRadius: 20,
-    marginBottom: 20,
-    paddingVertical: 10,     // Space between text and top/bottom border
-    paddingHorizontal: 20,  // Space between text and left/right border
-  },
-  buttonText: {
-    fontFamily: 'Inter',
-    fontSize: 20,
-    color: 'white',
-  },
-  modalContent: {
-    backgroundColor: 'white',
-    padding: 20,
-    maxHeight: 300,  // Set to whatever portion of the screen you want
-    borderRadius: 10,
-  },
-  modalItem: {
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     padding: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#e5e5e5',
   },
-  pickerButton: {
+
+  headerText: {
     fontFamily: 'Inter',
-    fontSize: 26,
+    fontSize: 18,
+    color: 'white',
+    width: 120, // or whatever fixed width you think looks best for each column
+    textAlign: 'center',
+  },
+  title: {
+    marginTop: 100,
+    fontFamily: 'Inter',
+    fontSize: 20,
+    color: 'white',
+    marginBottom: 10,
+  },
+  listItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     padding: 10,
-    borderRadius: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e5e5',
+  },
+  listItemText: {
+    fontFamily: 'Inter',
+    fontSize: 15,
+    color: 'white',
+    width: 120, // or whatever fixed width you think looks best for each column
+    textAlign: 'center',
+  },
+  paginationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginVertical: 20,
+    height: 90,
+  },
+  pageButton: {
     backgroundColor: '#4CAF50',
-    marginBottom: 20,
-    paddingVertical: 10,     // Space between text and top/bottom border
+    borderRadius: 20,
+    paddingVertical: 10,
     paddingHorizontal: 20,
   },
+  buttonText: {
+    fontFamily: 'Inter',
+    fontSize: 10,
+    color: 'white',
+  },
+  pageNumber: {
+    fontFamily: 'Inter',
+    fontSize: 10,
+    color: 'white',
+    paddingHorizontal: 5,
+    marginHorizontal: 10,
+    borderWidth: 0.5,
+    borderColor: '#e5e5e5'
+  },
+  swipeBackView: {
+    alignItems: 'flex-end',
+    backgroundColor: '#FFA500',  // Use any desired color
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingLeft: 15
+  },
+  favoriteButton: {
+    backgroundColor: '#FF4500',  // Use any desired color
+    height: '100%',
+    justifyContent: 'center',
+    paddingHorizontal: 20
+  },
+  favoriteButtonText: {
+    color: 'white',
+    fontFamily: 'Inter'
+  },
+
 });
