@@ -1,3 +1,4 @@
+from flask import abort
 from flask import Flask, request, jsonify, send_from_directory
 import pandas as pd
 import mplfinance as mpf
@@ -22,14 +23,12 @@ def generate_candlestick():
         # Extract JSON data from the request
         data = request.json['data']
         ticker = request.json['ticker']
-        logging.debug(f"Data received: {data}")
-        logging.debug(f"Ticker: {ticker}")
 
         # Define the column names for the DataFrame
         columns = ['mts', 'open', 'close', 'high', 'low', 'volume']
 
         df = pd.DataFrame(data, columns=columns)
-
+        df = df.sort_values(by='mts', ascending=True)
         df['date'] = pd.to_datetime(df['mts'], unit='ms')
         df.set_index('date', inplace=True)
         logging.debug({df.head})
@@ -58,6 +57,25 @@ def generate_candlestick():
 def serve_image(filename):
     """Serves an image from the temp_images directory."""
     return send_from_directory("temp_images", filename)
+
+
+@app.route('/backend/logos/<filename>', methods=['GET'])
+def serve_logo(filename):
+    """Serves an image from the temp_images directory."""
+    try:
+        # Try to serve the file using the original filename format
+        return send_from_directory("logos", filename)
+    except:
+        # If the original filename format doesn't exist, serve using the fallback filename format
+        # Split by "-" and get the word before "logo"
+        base_name = filename.split("-")[-2].upper()
+        fallback_filename = f"{base_name}.png"
+        logging.debug(f'filename: {fallback_filename}')
+        # Check if fallback file exists
+
+        return send_from_directory("logos", fallback_filename)
+    # If neither file exists, return a 404 not found error
+    abort(404)
 
 
 @app.route('/delete-temp-images', methods=['DELETE'])
