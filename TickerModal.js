@@ -1,16 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Modal, Button, StyleSheet, Dimensions, TouchableOpacity, Image } from 'react-native';
-import { checkRateLimit } from './utils';
-import { LineChart } from 'react-native-chart-kit';
+import { checkRateLimit, tradingPairSlicer } from './utils';
+import { CandlestickChart } from 'react-native-wagmi-charts';
 import * as Font from 'expo-font';
 
 
-const TickerModal = ({ visible, tickerData, onClose, navigation }) => {
+const TickerModal = ({ visible, tickerData, onClose, navigation, verboseData }) => {
     const [candleData, setCandleData] = useState([]);
     const [transformedData, setTransformedData] = useState(null);
     const [fontLoaded, setFontLoaded] = useState(false);
     const [candlestickImage, setCandlestickImage] = useState(null);
-
 
     console.log("TickerModal rendered with visible:", visible, "and tickerData:", tickerData);
 
@@ -27,12 +26,12 @@ const TickerModal = ({ visible, tickerData, onClose, navigation }) => {
     useEffect(() => {
         console.log('Modal visibility:', visible);
         if (visible && tickerData[0]) {
-            const candleEndpoint = `https://api-pub.bitfinex.com/v2/candles/trade:1h:${tickerData[0]}/hist?limit=100`;
+            const candleEndpoint = `https://api-pub.bitfinex.com/v2/candles/trade:1h:${tickerData[0]}/hist?limit=10}`;
             fetch(candleEndpoint)
                 .then(checkRateLimit)
                 .then(response => response.json())
                 .then(data => {
-                    console.log("Candle Data:", data);
+
                     setCandleData(data);
                     // Sending the data to your backend to generate the image:
                     fetch('http://192.168.68.109:5000/generate-candlestick', {
@@ -48,9 +47,10 @@ const TickerModal = ({ visible, tickerData, onClose, navigation }) => {
                         .then(response => response.json())
                         .then(json => {
                             const imageUrl = `http://192.168.68.109:5000${json.image_url}`;
-                            console.log(imageUrl)
+                            console.log(`Image URL: ${imageUrl}`)
                             setCandlestickImage(imageUrl);
                         })
+                        .then()
                         .catch(error => console.error("Error fetching image:", error));
                 })
 
@@ -58,17 +58,16 @@ const TickerModal = ({ visible, tickerData, onClose, navigation }) => {
         }
     }, [visible, tickerData]);
 
-    const transformDataForLineChart = (candleData) => {
-        if (!candleData || candleData.length === 0) return null;
-        const timestamps = candleData.map(candle => new Date(candle[0]).toISOString().slice(0, 10));
-        const closingPrices = candleData.map(candle => candle[2]);
-        return {
-            labels: timestamps,
-            datasets: [{
-                data: closingPrices
-            }]
-        };
-    };
+    const transformDataForLineChart = (candlesData) => {
+        return candlesData.map(candle => ({
+            timestamp: candle[0],
+            open: candle[1],
+            close: candle[2],
+            high: candle[3],
+            low: candle[4],
+        }))
+            .sort((a, b) => a.timestamp - b.timestamp);
+    }
 
     useEffect(() => {
         // Call the transform function only when candleData changes.
@@ -77,9 +76,21 @@ const TickerModal = ({ visible, tickerData, onClose, navigation }) => {
             setTransformedData(transformedData);
         }
     }, [candleData]);
+
     if (!fontLoaded) {
         return null;
     }
+
+    function capitalizeFLetter(name) {
+        if (name) {
+            return name[0].toUpperCase() +
+                name.slice(1);
+        }
+        else {
+            return 'Bitcoin';
+        }
+    }
+
 
 
     return (
@@ -93,7 +104,8 @@ const TickerModal = ({ visible, tickerData, onClose, navigation }) => {
                 <View style={styles.modalView}>
                     <Text style={styles.modalTitle}>Ticker Details</Text>
                     {/* Display ticker details here. Adjust according to your data structure. */}
-                    <Text style={styles.modalTitle}>Ticker: {tickerData[0]}</Text>
+                    <Text style={styles.modalTitle}>Selected Crypto: {capitalizeFLetter(tradingPairSlicer(tickerData[0], verboseData)[2])}</Text>
+                    {/*
                     {
                         candlestickImage ?
                             <Image source={{ uri: candlestickImage }
@@ -101,6 +113,24 @@ const TickerModal = ({ visible, tickerData, onClose, navigation }) => {
                             :
                             <Text>Loading Candlestick Chart...</Text>
                     }
+                */}
+                    <CandlestickChart.Provider data={transformedData}>
+                        <CandlestickChart styles={styles.candleStickStyle}
+                            width={Dimensions.get("window").width - 16}
+                            height={100}>
+                            <CandlestickChart.Candles positiveColor='green'
+                                negativeColor='red' />
+                            <CandlestickChart.Crosshair>
+                                <CandlestickChart.Tooltip />
+                            </CandlestickChart.Crosshair>
+                            <CandlestickChart.PriceText type="open" />
+                            <CandlestickChart.PriceText type="close" />
+                            <CandlestickChart.PriceText type="high" />
+                            <CandlestickChart.PriceText type="low" />
+                            <CandlestickChart.DatetimeText />
+                        </CandlestickChart>
+
+                    </CandlestickChart.Provider>
                     {/* Close button */}
                     <TouchableOpacity
                         style={styles.closeButton}
@@ -116,9 +146,11 @@ const TickerModal = ({ visible, tickerData, onClose, navigation }) => {
                     </TouchableOpacity>
                 </View>
             </View>
-        </Modal>
+        </Modal >
     );
 }
+
+
 
 const styles = StyleSheet.create({
     centeredView: {
@@ -130,7 +162,7 @@ const styles = StyleSheet.create({
     modalView: {
         fontFamily: 'Inter',
         color: 'white',
-        backgroundColor: '#3E92CC',
+        backgroundColor: '#222C33',
         margin: 20,
         borderRadius: 20,
         padding: 35,
@@ -163,6 +195,9 @@ const styles = StyleSheet.create({
         borderWidth: 0.5,
         borderRadius: 10,
         backgroundColor: '#4CAF50'
+    },
+    candleStickStyle: {
+        backgroundColor: '#152330'
     }
 });
 

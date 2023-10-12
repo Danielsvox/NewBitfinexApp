@@ -1,64 +1,52 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
-import * as Font from 'expo-font';
-import { checkRateLimit } from './utils';
+import * as React from 'react';
+import { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Image, Dimensions } from 'react-native';
+import { checkRateLimit, tradingPairSlicer } from './utils';
 import TickerModal from './TickerModal'; // Adjust path if needed
-import { fetchCoinGeckoData } from './coinGeckoUtils';
+import { Icon } from "react-native-elements";
+import { useTickers } from './utils';
 
 
 export default function App({ navigation }) {
-  const [tickers, setTickers] = useState([]);
   const [page, setPage] = useState(1);
   const itemsPerPage = 20;
-  const [fontLoaded, setFontLoaded] = useState(false);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedTicker, setSelectedTicker] = useState([]);
-  const [isLoading, setLoading] = useState(true);
+  const [verboseNames, setVerboseNames] = useState([]);
+  const { tickers, isLoading } = useTickers();
+  console.log(tickers);
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchVerboseMap = async () => {
       try {
-        await fetchCoinGeckoData();
-        setLoading(false);
+        const response = await fetch('https://api-pub.bitfinex.com/v2/conf/pub:map:currency:label');
+        await checkRateLimit(response);
+        const data = await response.json();
+        if (Array.isArray(data)) {
+          const verboseData = data[0];
+          setVerboseNames(verboseData);
+        } else {
+          console.error('Invalid API response:', data);
+        }
       } catch (error) {
-        console.error("Error fetching CoinGecko data:", error);
-        setLoading(false);  // You can also set an error state here if you wish to display an error message.
+        console.error('Error fetching tickers:', error);
       }
     };
 
-    fetchData();
-  }, []);  // The empty dependency array ensures this effect runs once when the component mounts.
-
-
-  useEffect(() => {
-    loadFontAsync();
-    fetchTickers();
+    fetchVerboseMap();
   }, []);
 
-  const loadFontAsync = async () => {
-    await Font.loadAsync({
-      Inter: require('./assets/fonts/Inter-Regular.ttf'),
-    });
-    setFontLoaded(true);
-  };
 
-  const fetchTickers = async () => {
-    try {
-      const response = await fetch('https://api-pub.bitfinex.com/v2/tickers?symbols=ALL');
-      await checkRateLimit(response);
-      const data = await response.json();
-      if (Array.isArray(data)) {
-        const usdTickers = data.filter(tickerData => tickerData[0].endsWith('USD')).map(ticker => ({
-          ...ticker,
-          isFavorite: false
-        }));
-        setTickers(usdTickers);
-      } else {
-        console.error('Invalid API response:', data);
-      }
-    } catch (error) {
-      console.error('Error fetching tickers:', error);
-    }
+
+  const getLogoFilename = (ticker) => {
+    const base = tradingPairSlicer(ticker, verboseNames)[0];
+    const name = base.toLowerCase(); // Convert to lowercase for filename matching
+    // Find verbose name using base
+    const verboseEntry = verboseNames.find(entry => entry[0] === base);
+    const verboseName = verboseEntry ? verboseEntry[1].toLowerCase().replace(/\s+/g, '-') : name; // Fallback to `name` if verboseName not found
+
+    // Assuming logo names follow a pattern like: bitcoin-btc-logo.svg
+    return `http://192.168.68.109:5000/backend/logos/${verboseName.toLowerCase()}-${base.toLowerCase()}-logo.png`;
   };
 
   const handleModalClose = async () => {
@@ -81,27 +69,22 @@ export default function App({ navigation }) {
     }
   }
 
-
-
-
   const paginatedTickers = tickers.slice((page - 1) * itemsPerPage, page * itemsPerPage);
+  const maxPages = Math.ceil(tickers.length / itemsPerPage);
 
-  if (!fontLoaded) {
-    return null;
-  }
   if (isLoading) {
-    return <ActivityIndicator size="large" color="#0000ff" />;  // Adjust this loading indicator as needed.
+    return <ActivityIndicator size="large" color="#0000ff" />;
   }
 
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Tickers List</Text>
-      <View></View>
+      <Text style={styles.title}>Available Tokens</Text>
+
       <View style={styles.headerRow}>
-        <Text style={styles.headerText}>Ticker </Text>
+        <Text style={styles.headerText}>Name</Text>
         <Text style={styles.headerText}>Last Price </Text>
-        <Text style={styles.headerText}>24h Volume </Text>
+        <Text style={styles.headerText}>24h</Text>
       </View>
 
       <FlatList
@@ -110,14 +93,24 @@ export default function App({ navigation }) {
           <TouchableOpacity
             onPress={() => {
               setSelectedTicker(item);
+              getLogoFilename(item[0]);
               setIsModalVisible(true);
             }}
           >
             <View style={styles.listItem}>
-              <Text style={styles.listItemText}>{item[0]}</Text>
+              <Image
+                source={{ uri: getLogoFilename(item[0]) }}
+                style={{ width: 30, height: 30 }}  // Adjust size as necessary
+              />
+              <Text style={styles.listItemText}>{tradingPairSlicer(item[0])[0]}</Text>
               <Text style={styles.listItemText}>${parseFloat(item[7]).toFixed(2)}</Text>
               {/* Calculate volume in terms of USD by multiplying base volume with last traded price in USD */}
-              <Text style={styles.listItemText}>${parseFloat(item[8] * item[7]).toFixed(2)}</Text>
+              <Text style={[
+                styles.listItemText,
+                item[6] > 0 ? styles.positiveValue : styles.negativeValue
+              ]}>
+                {`${parseFloat(item[6] * 100).toFixed(2)}% ${item[6] > 0 ? '🔺' : '🔻'}`}
+              </Text>
             </View>
           </TouchableOpacity>
         )}
@@ -125,18 +118,34 @@ export default function App({ navigation }) {
       />
 
       <View style={styles.paginationContainer}>
-        <TouchableOpacity onPress={() => setPage(prevPage => Math.max(prevPage - 1, 1))} style={styles.pageButton}>
-          <Text style={styles.buttonText}>Previous</Text>
-        </TouchableOpacity>
-        <Text style={styles.pageNumber}>{page}</Text>
-        <TouchableOpacity onPress={() => setPage(prevPage => prevPage + 1)} style={styles.pageButton}>
-          <Text style={styles.buttonText}>Next</Text>
-        </TouchableOpacity>
+        {page > 1 ? (
+          <TouchableOpacity
+            onPress={() => setPage(prevPage => Math.max(prevPage - 1, 1))}
+            style={styles.pageButton}>
+            <Icon name="arrow-back-ios" size={30} color="white" />
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.pageButtonPlaceholder} />
+        )}
+
+
+        <Text style={styles.pageNumber}>Page {page}</Text>
+        {page < maxPages ? (
+          <TouchableOpacity
+            onPress={() => setPage(prevPage => Math.min(prevPage + 1, maxPages))}
+            style={styles.pageButton}>
+            <Icon name="arrow-forward-ios" size={30} color="white" />
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.pageButtonPlaceholder} />
+        )}
       </View>
+
       <TickerModal
         navigation={navigation}
         visible={isModalVisible}
         tickerData={selectedTicker}
+        verboseData={verboseNames}
         onClose={handleModalClose}
       />
     </View>
@@ -183,8 +192,9 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter',
     fontSize: 15,
     color: 'white',
-    width: 120, // or whatever fixed width you think looks best for each column
-    textAlign: 'center',
+    width: Dimensions.get("window").width - 280, // or whatever fixed width you think looks best for each column
+    textAlign: 'left',
+    marginLeft: 10,
   },
   paginationContainer: {
     flexDirection: 'row',
@@ -194,10 +204,10 @@ const styles = StyleSheet.create({
     height: 90,
   },
   pageButton: {
-    backgroundColor: '#4CAF50',
-    borderRadius: 20,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
+    width: 50,  // Example width
+    height: 50, // Example height
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   buttonText: {
     fontFamily: 'Inter',
@@ -208,8 +218,8 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter',
     fontSize: 10,
     color: 'white',
-    paddingHorizontal: 5,
-    marginHorizontal: 10,
+    paddingVertical: 0,
+    paddingHorizontal: 20,
     borderWidth: 0.5,
     borderColor: '#e5e5e5'
   },
@@ -230,6 +240,17 @@ const styles = StyleSheet.create({
   favoriteButtonText: {
     color: 'white',
     fontFamily: 'Inter'
+  },
+  positiveValue: {
+    color: 'green',
+  },
+  negativeValue: {
+    color: 'red',
+  },
+  pageButtonPlaceholder: {
+    width: 50,  // Should be the same as pageButton width
+    height: 50, // Should be the same as pageButton height
+    // ... other necessary styles to mimic the button's space
   },
 
 });
