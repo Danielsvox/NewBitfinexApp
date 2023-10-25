@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Modal, Button, StyleSheet, Dimensions, TouchableOpacity, Image } from 'react-native';
-import { checkRateLimit, tradingPairSlicer } from './utils';
+import { checkRateLimit, capitalizeFLetter } from './utils';
 import { CandlestickChart } from 'react-native-wagmi-charts';
 import * as Font from 'expo-font';
 
 
-const TickerModal = ({ visible, tickerData, onClose, navigation, verboseData }) => {
+const TickerModal = ({ visible, tickerData, onClose, navigation }) => {
     const [candleData, setCandleData] = useState([]);
     const [transformedData, setTransformedData] = useState(null);
     const [fontLoaded, setFontLoaded] = useState(false);
@@ -81,18 +81,6 @@ const TickerModal = ({ visible, tickerData, onClose, navigation, verboseData }) 
         return null;
     }
 
-    function capitalizeFLetter(name) {
-        if (name) {
-            return name[0].toUpperCase() +
-                name.slice(1);
-        }
-        else {
-            return 'Bitcoin';
-        }
-    }
-
-
-
     return (
         <Modal
             visible={visible}
@@ -104,7 +92,7 @@ const TickerModal = ({ visible, tickerData, onClose, navigation, verboseData }) 
                 <View style={styles.modalView}>
                     <Text style={styles.modalTitle}>Ticker Details</Text>
                     {/* Display ticker details here. Adjust according to your data structure. */}
-                    <Text style={styles.modalTitle}>Selected Crypto: {capitalizeFLetter(tradingPairSlicer(tickerData[0], verboseData)[2])}</Text>
+                    <Text style={styles.modalTitle}>Selected Crypto: {capitalizeFLetter((ticker.ticker))}</Text>
                     {/*
                     {
                         candlestickImage ?
