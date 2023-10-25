@@ -4,6 +4,21 @@ import * as Notifications from 'expo-notifications';
 
 export const TickersContext = createContext();
 
+export function capitalizeFLetter(name) {
+    if (name) {
+        return name[0].toUpperCase() +
+            name.slice(1);
+    }
+    else {
+        return 'Bitcoin';
+    }
+}
+
+
+export const getStyles = (theme) => theme;
+
+
+
 export const checkRateLimit = async (response) => {
     if (response.status === 429) {
         await Notifications.scheduleNotificationAsync({
@@ -18,50 +33,33 @@ export const checkRateLimit = async (response) => {
     return response;
 };
 
-export function tradingPairSlicer(tickerString = '', verboseNames = []) {
-    // Remove the 't' from the beginning
-
-    const string = tickerString.slice(1);
-    // Returns trading pair sliced as an array = ['BASE','QUOTE']
-    if (string.length > 6) {
-        const tradingPair = string.split(':');
-        const verboseEntry = verboseNames.find(entry => entry[0] === tradingPair[0]);
-        const verboseName = verboseEntry ? verboseEntry[1].toLowerCase().replace(/\s+/g, '-') : tradingPair[0]; // Fallback to `name` if verboseName not found
-        tradingPair.push(verboseName);
-        return tradingPair;
-    } else {
-        const tradingPair = [string.slice(0, 3), string.slice(3, 6)];
-        const verboseEntry = verboseNames.find(entry => entry[0] === tradingPair[0]);
-        const verboseName = verboseEntry ? verboseEntry[1].toLowerCase().replace(/\s+/g, '-') : tradingPair[0]; // Fallback to `name` if verboseName not found
-        tradingPair.push(verboseName);
-        return tradingPair;
-    }
-};
-
 // TickersContext.js
 export const TickersProvider = ({ children }) => {
     const [tickers, setTickers] = useState([]);
-    const [verboseNames, setVerboseNames] = useState([]);
     const [isLoading, setLoading] = useState(true);
 
-    // Move the fetching logic to the context
+
     useEffect(() => {
         const fetchTickers = async () => {
             try {
-                const response = await fetch('https://api-pub.bitfinex.com/v2/tickers?symbols=ALL');
-                await checkRateLimit(response);
+                const response = await fetch('http://192.168.68.109:5000/get-tickers'); // Replace with your endpoint
                 const data = await response.json();
+
                 if (Array.isArray(data)) {
-                    const usdTickers = data.filter(tickerData =>
-                        tickerData[0].endsWith('USD') && !tickerData[0].startsWith('tTEST') && !tickerData[0].startsWith('f')
+                    const filteredTickers = data.filter(tickerData =>
+                        !tickerData.ticker.startsWith('tTEST') &&
+                        !tickerData.ticker.startsWith('f')
                     ).map(ticker => ({
                         ...ticker,
                         isFavorite: false,
-                        usdVolume: parseFloat(ticker[7] * ticker[8]).toFixed(2)
+                        usdVolume: parseFloat(ticker.tickerData.volume * ticker.tickerData.last_price).toFixed(2),
+                        absPercMove: parseFloat(Math.abs(ticker.tickerData.daily_change_relative) * 100).toFixed(3)
                     }));
-                    setTickers(usdTickers);
+                    setTickers(filteredTickers);
                     setLoading(false);
-                } else {
+
+                }
+                else {
                     console.error('Invalid API response:', data);
                 }
             } catch (error) {
@@ -70,39 +68,19 @@ export const TickersProvider = ({ children }) => {
             }
         };
 
-        const fetchVerboseMap = async () => {
-            try {
-                const response = await fetch('https://api-pub.bitfinex.com/v2/conf/pub:map:currency:label');
-                await checkRateLimit(response);
-                const data = await response.json();
-                if (Array.isArray(data)) {
-                    setVerboseNames(data[0]);
-                } else {
-                    console.error('Invalid API response:', data);
-                }
-            } catch (error) {
-                console.error('Error fetching verbose map:', error);
-            }
-        };
-
         fetchTickers();
-        fetchVerboseMap();
     }, []);
 
-    const getLogoFilename = (ticker) => {
-        const base = tradingPairSlicer(ticker, verboseNames)[0];
-        const name = base.toLowerCase(); // Convert to lowercase for filename matching
-        // Find verbose name using base
-        const verboseEntry = verboseNames.find(entry => entry[0] === base);
-        const verboseName = verboseEntry ? verboseEntry[1].toLowerCase().replace(/\s+/g, '-') : name; // Fallback to `name` if verboseName not found
 
-        // Assuming logo names follow a pattern like: bitcoin-btc-logo.svg
-        return `http://192.168.68.109:5000/backend/logos/${verboseName.toLowerCase()}-${base.toLowerCase()}-logo.png`;
+    const getLogoFilename = (ticker) => {
+        const base = ticker.baseCurrency.toLowerCase();
+        const verboseName = ticker.verboseName.toLowerCase().replace(/\s+/g, '-');
+
+        return `http://192.168.68.109:5000/backend/logos/${verboseName}-${base}-logo.png`;
     };
 
-
     return (
-        <TickersContext.Provider value={{ tickers, isLoading, verboseNames, getLogoFilename }}>
+        <TickersContext.Provider value={{ tickers, isLoading, getLogoFilename }}>
             {children}
         </TickersContext.Provider>
     );

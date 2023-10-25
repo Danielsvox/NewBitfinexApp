@@ -1,32 +1,33 @@
 import * as React from "react";
 import { useContext, useEffect, useState } from 'react';
 import { Image } from "expo-image";
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity } from "react-native";
-import { Color, Border, FontSize, FontFamily } from "./GlobalStyles";
-import { Icon } from "react-native-elements";
-import { tradingPairSlicer, TickersContext, checkRateLimit } from './utils';
+import { Text, View, ScrollView, TouchableOpacity } from "react-native";
+
+import { TickersContext, checkRateLimit, capitalizeFLetter, getStyles } from './utils';
 import NewsComponent from './NewsComponent';
-import { LineChart, LineChartProvider } from 'react-native-wagmi-charts';
+import { LineChart } from 'react-native-wagmi-charts';
 
-function capitalizeFLetter(name) {
-    if (name) {
-        return name[0].toUpperCase() +
-            name.slice(1);
-    }
-    else {
-        return 'Bitcoin';
-    }
-}
 
-const TickerCard = ({ ticker, getLogoFilename, verboseNames }) => {
+import TickersComponent from "./TickerComponent";
+
+import { useNavigation } from '@react-navigation/native';
+
+import ThemeContext from './themes/ThemeContext';
+
+
+
+const TickerCard = ({ ticker, getLogoFilename, navigation }) => {
+
     const [candleData, setCandleData] = useState([]);
     const [transformedData, setTransformedData] = useState([]);
     const [chartColor, setChartColor] = useState('green'); // default to green
+    const { theme } = React.useContext(ThemeContext);
+    const styles = getStyles(theme)
 
     useEffect(() => {
         const fetchCandleData = async () => {
             try {
-                const candleEndpoint = `https://api-pub.bitfinex.com/v2/candles/trade:1h:${ticker[0]}/hist?limit=24`;
+                const candleEndpoint = `https://api-pub.bitfinex.com/v2/candles/trade:1h:${ticker.ticker}/hist?limit=24`;
                 const response = await fetch(candleEndpoint);
                 // Check for rate limiting
                 checkRateLimit(response);
@@ -52,42 +53,47 @@ const TickerCard = ({ ticker, getLogoFilename, verboseNames }) => {
             setChartColor(color);
         }
     }, [candleData]);
-    console.log(transformedData);
 
     return (
-        <View style={styles.card}>
-            <View style={styles.topSection}>
-                <Image
-                    style={styles.logo}
-                    source={{ uri: getLogoFilename(ticker[0]) }}
-                />
-                <Text style={styles.tokenName}>
-                    {capitalizeFLetter(tradingPairSlicer(ticker[0], verboseNames)[2])}
-                </Text>
-            </View>
-            <View style={styles.graphPlaceholder}>
-                {transformedData.length > 0 ? (
-                    <LineChart.Provider style={styles.lineChart} data={transformedData}>
-                        <LineChart width={230} height={110}>
-                            <LineChart.Path color={chartColor}>
-                                <LineChart.Gradient />
-                            </LineChart.Path>
-                        </LineChart>
-                    </LineChart.Provider>
-                ) : (
-                    <Text>Loading chart...</Text>
-                )}
-            </View>
+        <TouchableOpacity
+            onPress={() => {
+                navigation.navigate("TickerDetail", { ticker: ticker });
+            }}
+        >
+            <View style={styles.card}>
+                <View style={styles.topSection}>
+                    <Image
+                        style={styles.logo}
+                        source={{ uri: getLogoFilename(ticker) }}
+                    />
+                    <Text style={styles.tokenName}>
+                        {capitalizeFLetter(ticker.verboseName)}
+                    </Text>
+                </View>
+                <View style={styles.graphPlaceholder}>
+                    {transformedData.length > 0 ? (
+                        <LineChart.Provider style={styles.lineChart} data={transformedData}>
+                            <LineChart width={230} height={110}>
+                                <LineChart.Path color={chartColor}>
+                                    <LineChart.Gradient />
+                                </LineChart.Path>
+                            </LineChart>
+                        </LineChart.Provider>
+                    ) : (
+                        <Text>Loading chart...</Text>
+                    )}
+                </View>
 
-            <View style={styles.bottomSection}>
-                <Text style={styles.dailyVolume}>
-                    Daily: ${parseFloat(ticker["7"] * ticker['8']).toFixed(2)} USD
-                </Text>
-                <Text style={styles.lastTradedPrice}>
-                    ${parseFloat(ticker["7"]).toFixed(3)}
-                </Text>
+                <View style={styles.bottomSection}>
+                    <Text style={styles.dailyVolume}>
+                        Last Traded Price: ${parseFloat(ticker.tickerData.last_price).toFixed(2)} USD
+                    </Text>
+                    <Text style={styles.lastTradedPrice}>
+                        Volume: {(ticker.usdVolume)}
+                    </Text>
+                </View>
             </View>
-        </View >
+        </TouchableOpacity>
     );
 };
 
@@ -95,41 +101,34 @@ const TickerCard = ({ ticker, getLogoFilename, verboseNames }) => {
 
 
 const Frame = () => {
-    const { tickers, getLogoFilename, verboseNames } = useContext(TickersContext);
+    const { tickers, getLogoFilename } = useContext(TickersContext);
+    const navigation = useNavigation();
+    const [selectedSection, setSelectedSection] = useState('News');
     const topTickers = [...tickers].sort((a, b) => b.usdVolume - a.usdVolume).slice(0, 5);
-
-    const [selectedSection, setSelectedSection] = useState('Watchlist');
+    const { theme } = React.useContext(ThemeContext);
+    const styles = getStyles(theme)
 
     const renderContent = () => {
         switch (selectedSection) {
-            case 'Favorites':
-                return <Text>Content for Favs</Text>;
+            case 'Winners':
+                return <TickersComponent navigation={navigation} displayType="Winners" />;
             case 'News':
-                return <NewsComponent />;
+                return <NewsComponent navigation={navigation} />;
             case 'Movers':
-                return <Text>Content for Movers</Text>;
-            case 'Rewards':
-                return <Text>Content for Rewards</Text>;
+                return <TickersComponent navigation={navigation} displayType="Movers" />;
+            case 'Losers':
+                return <TickersComponent navigation={navigation} displayType="Losers" />;
             default:
-                return <Text>Content for Watchlist</Text>;
+                return <NewsComponent navigation={navigation} />;
         }
     };
 
+
     return (
         <View style={styles.view}>
-            <View style={[styles.header, styles.headerPosition]}>
-                <Image
-                    name={[styles.icon, styles.iconLayout]}
-                    contentFit="cover"
-                    source={require("./assets/menuicon.png")}
-                />
-                <View style={[styles.image, styles.maskPosition]}>
-                    <View style={[styles.mask, styles.maskPosition]} />
-                </View>
-            </View>
             <View style={styles.text}>
                 <Text style={styles.totalBalance}>Total Balance</Text>
-                <Text style={[styles.text1, styles.textFlexBox]}>$5560.89</Text>
+                <Text style={[styles.text1, styles.textFlexBox]}>$10000</Text>
             </View>
             <ScrollView
                 horizontal={true}
@@ -144,7 +143,7 @@ const Frame = () => {
                                 key={index}
                                 ticker={ticker}
                                 getLogoFilename={getLogoFilename}
-                                verboseNames={verboseNames}
+                                navigation={navigation}
                             />
                         ))
                     ) : (
@@ -152,46 +151,63 @@ const Frame = () => {
                     )}
                 </View>
             </ScrollView>
+
             <ScrollView
                 horizontal={true}
-                showsHorizontalScrollIndicator={true}
+                showsHorizontalScrollIndicator={false}
                 pagingEnabled={true}
-                style={styles.scrollSections}
+                style={styles.scrollSelections}
             >
-                {['Favorites', 'News', 'Movers', 'Rewards'].map((section) => (
+                {['Winners', 'Losers', 'Movers', 'News'].map((section) => (
                     <TouchableOpacity
                         key={section}
-                        style={styles.selections}
+                        style={[
+                            styles.selections,
+                            section === selectedSection && styles.selectedSelection
+                        ]}
                         onPress={() => setSelectedSection(section)}
                     >
-                        <Text style={styles.selectionsText}>{section}</Text>
+                        <Text
+                            style={[
+                                styles.selectionsText,
+                                section === selectedSection && styles.selectedSelectionText // Apply the 'selectedSelectionText' style if this section is selected
+                            ]}
+                        >
+                            {section}
+                        </Text>
                     </TouchableOpacity>
                 ))}
             </ScrollView>
-            {/* Conditional Rendering of News Component */}
-            {/* Content Area */}
+
+
+
             <View style={styles.contentArea}>
-                {/* Conditional Rendering of News Component */}
+
                 {selectedSection === 'News' && (
                     <NewsComponent />
                 )}
-                {/* Other Content Rendering */}
+
                 {selectedSection !== 'News' && renderContent()}
             </View>
+
+
         </View >
     );
 };
 
+{/*
 const styles = StyleSheet.create({
     view: {
-        flex: 1, // Ensure this view takes the full available space
+        flex: 1,
+        //backgroundColor: '#152330'
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center', // Centers children horizontally
-        padding: 10,
+        justifyContent: 'center',
+        padding: height * 0.01, // 1% of screen height
     },
+
     icon: {
         width: 30, // Or appropriate size
         height: 30, // Or appropriate size
@@ -205,22 +221,26 @@ const styles = StyleSheet.create({
         color: Color.colorGray_200,
     },
     balanceText: {
-        padding: 10,
+        padding: 5,
         alignItems: 'flex-start', // Aligns children to the start
     },
     text1: {
+        padding: 5,
         fontSize: 30,
         fontWeight: "500",
         textAlign: "left",
+
         color: Color.colorGray_200,
         fontFamily: FontFamily.sFProText,
         letterSpacing: 1,
     },
     textFlexBox: {
         textAlign: "left",
-        left: "0%",
+        left: "1%",
     },
     totalBalance: {
+        padding: 5,
+        left: '1%',
         color: Color.colorGray_100,
         fontSize: FontSize.size_xs,
         textAlign: "left",
@@ -236,26 +256,26 @@ const styles = StyleSheet.create({
         overflow: 'scroll', // To allow scrolling
     },
     card: {
-        width: 270, // Your preferred width
-        height: 208, // Your preferred height
-        margin: 8, // Space between cards
+        width: width * 0.7, // 60% of screen width
+        height: height * 0.32, // 25% of screen height
+        margin: width * 0.02, // 2% of screen width
         backgroundColor: '#fff',
-        borderRadius: 8, // Rounded corners
-        elevation: 3, // Android shadow
-        shadowColor: '#000', // iOS shadow
-        shadowOffset: { width: 0, height: 2 },
+        borderRadius: 8,
+        elevation: 3,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: height * 0.005 }, // 0.5% of screen height
         shadowOpacity: 0.1,
         shadowRadius: 8,
     },
     topSection: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 10,
+        padding: height * 0.01,
     },
     logo: {
-        width: 40,
-        height: 40,
-        borderRadius: 20, // To make the logo rounded
+        width: width * 0.1, // 10% of screen width
+        height: width * 0.1, // keeping it square
+        borderRadius: width * 0.05, // half of logo width
     },
     tokenName: {
         marginLeft: 10,
@@ -266,7 +286,7 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        padding: 10, // Padding to ensure the graph does not touch the edges of the card
+        padding: 20, // Padding to ensure the graph does not touch the edges of the card
     },
     bottomSection: {
         padding: 10,
@@ -278,18 +298,20 @@ const styles = StyleSheet.create({
     lastTradedPrice: {
         fontSize: 14,
     },
-    scrollSections: {
-        // flex: ,
+    scrollSelections: {
+        flex: 1,
+        height: height * 0.2,
+
     },
     selections: {
-        width: 100, // Your preferred width
-        height: 40, // Your preferred height
-        margin: 8, // Space between cards
+        width: width * 0.2, // 20% of screen width
+        height: height * 0.05, // 5% of screen height
+        margin: width * 0.02,
         backgroundColor: '#fff',
-        borderRadius: 8, // Rounded corners
-        elevation: 3, // Android shadow
-        shadowColor: '#000', // iOS shadow
-        shadowOffset: { width: 0, height: 2 },
+        borderRadius: 8,
+        elevation: 3,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: height * 0.005 },
         shadowOpacity: 0.1,
         shadowRadius: 8,
         justifyContent: "center",
@@ -298,9 +320,17 @@ const styles = StyleSheet.create({
     selectionsText: {
         fontFamily: FontFamily.Inter,
     },
+    selectedSelection: {
+        backgroundColor: '#2C66CB', // Replace 'yourSelectedColor' with the desired color for the selected section
+    },
+    selectedSelectionText: {
+        color: 'white',
+    },
     contentArea: {
         flex: 1, // Takes up remaining vertical space
+        marginTop: -200, // or an appropriate value
     },
 });
+*/}
 
 export default Frame;

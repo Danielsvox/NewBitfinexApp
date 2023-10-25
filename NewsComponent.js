@@ -1,9 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
 import axios from 'axios';
+import { useNavigation } from '@react-navigation/native';
+import RenderHtml from 'react-native-render-html';
+import { getStyles } from './utils';
+import ThemeContext from './themes/ThemeContext';
+const { width, height } = Dimensions.get('window');
 
 const NewsComponent = () => {
     const [newsData, setNewsData] = useState([]);
+    const navigation = useNavigation();
+    const { theme } = React.useContext(ThemeContext);
+    const styles = getStyles(theme)
 
     useEffect(() => {
         const fetchNews = async () => {
@@ -18,43 +26,23 @@ const NewsComponent = () => {
     }, []);
 
     return (
-        <ScrollView style={styles.scrollView}>
+        <ScrollView style={styles.scrollViewNews}>
             {newsData.map((news, index) => (
-                <View key={index} style={styles.newsCard}>
-                    <Text style={styles.title}>{news[3]}</Text>
-                    <Text style={styles.snippet}>{news[4].substring(0, 100)}...</Text>
-                </View>
+                <TouchableOpacity
+                    key={index}
+                    onPress={() => {
+                        navigation.navigate("NewsDetail", { news: news });
+                    }}>
+
+                    <View key={index} style={styles.newsCard}>
+                        <Text style={styles.titleNews}>{news[3]}</Text>
+                        <RenderHtml contentWidth={width} source={{ html: news[4].substring(0, 100) }} tagsStyles={styles.snippet} />
+
+                    </View>
+                </TouchableOpacity>
             ))}
         </ScrollView>
     );
 };
-
-const styles = StyleSheet.create({
-    scrollView: {
-        padding: 5
-    },
-    newsCard: {
-        backgroundColor: '#fff',
-        borderRadius: 15,
-        padding: 15,
-        marginBottom: 10,
-        shadowColor: "#000",
-        shadowOffset: {
-            width: 0,
-            height: 2,
-        },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
-        elevation: 5,
-    },
-    title: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        marginBottom: 5,
-    },
-    snippet: {
-        fontSize: 14,
-    }
-});
 
 export default NewsComponent;
