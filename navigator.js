@@ -94,25 +94,29 @@ const MainNavigator = () => {
             screenOptions={({ route }) => ({
                 tabBarIcon: ({ focused, size }) => {
                     let iconName;
+                    let iconColor;
 
                     if (route.name === 'Home') {
-                        iconName = focused ? 'home' : 'home';
+                        iconName = 'home';
+                        iconColor = focused ? (isDark ? '#4CAF50' : '#1976D2') : (isDark ? 'white' : 'black');
                     } else if (route.name === 'Markets') {
-                        iconName = focused ? 'chart-line-variant' : 'chart-line-variant';
+                        iconName = 'chart-line-variant';
+                        iconColor = focused ? (isDark ? '#FFC107' : '#FF5722') : (isDark ? 'white' : 'black');
                     } else if (route.name === 'Wallet') {
-                        iconName = focused ? 'wallet' : 'wallet';
+                        iconName = 'wallet';
+                        iconColor = focused ? (isDark ? '#E91E63' : '#9C27B0') : (isDark ? 'white' : 'black');
                     } else if (route.name === 'Account') {
-                        iconName = focused ? 'account' : 'account';
+                        iconName = 'account';
+                        iconColor = focused ? (isDark ? '#03A9F4' : '#8BC34A') : (isDark ? 'white' : 'black');
                     }
 
-                    // You can return any component that you like here!
-                    return <Icon name={iconName} size={size} color={isDark ? "white" : "black"} type={'material-community'} />;
+                    return <Icon name={iconName} size={size} color={iconColor} type={'material-community'} />;
                 },
                 tabBarActiveTintColor: isDark ? 'white' : 'black',
                 tabBarInactiveTintColor: isDark ? 'lightgrey' : 'grey',
                 tabBarStyle: {
                     display: 'flex',
-                    backgroundColor: isDark ? '#1c1c1e' : 'white' // dark background for dark mode
+                    backgroundColor: isDark ? '#1c1c1e' : 'white'
                 },
             })}
         >
@@ -122,7 +126,7 @@ const MainNavigator = () => {
             <Tab.Screen name="Account" component={AccountStack} />
         </Tab.Navigator>
     );
-
 };
+
 
 export default MainNavigator;
