@@ -1,192 +1,173 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, Modal, Button, StyleSheet, Dimensions, TouchableOpacity, Image } from 'react-native';
-import { checkRateLimit, capitalizeFLetter } from './utils';
+import React, { useState, useEffect, useContext } from 'react';
+import {
+    View, Text, Modal, StyleSheet, Dimensions,
+    TouchableOpacity, ActivityIndicator,
+} from 'react-native';
 import { CandlestickChart } from 'react-native-wagmi-charts';
-import * as Font from 'expo-font';
+import { checkRateLimit, capitalizeFLetter } from './utils';
+import ThemeContext from './themes/ThemeContext';
 
+const { width } = Dimensions.get('window');
 
 const TickerModal = ({ visible, tickerData, onClose, navigation }) => {
-    const [candleData, setCandleData] = useState([]);
     const [transformedData, setTransformedData] = useState(null);
-    const [fontLoaded, setFontLoaded] = useState(false);
-    const [candlestickImage, setCandlestickImage] = useState(null);
+    const [loading, setLoading] = useState(false);
 
-    console.log("TickerModal rendered with visible:", visible, "and tickerData:", tickerData);
+    const { theme } = useContext(ThemeContext);
+    const C = theme._colors;
 
     useEffect(() => {
-        loadFontAsync();
-    }, []);
-
-    const loadFontAsync = async () => {
-        await Font.loadAsync({
-            Inter: require('./assets/fonts/Inter-Regular.ttf'),
-        });
-        setFontLoaded(true);
-    };
-    useEffect(() => {
-        console.log('Modal visibility:', visible);
-        if (visible && tickerData[0]) {
-            const candleEndpoint = `https://api-pub.bitfinex.com/v2/candles/trade:1h:${tickerData[0]}/hist?limit=10}`;
-            fetch(candleEndpoint)
+        if (visible && tickerData?.[0]) {
+            setLoading(true);
+            const endpoint = `https://api-pub.bitfinex.com/v2/candles/trade:1h:${tickerData[0]}/hist?limit=10`;
+            fetch(endpoint)
                 .then(checkRateLimit)
-                .then(response => response.json())
+                .then(r => r.json())
                 .then(data => {
-
-                    setCandleData(data);
-                    // Sending the data to your backend to generate the image:
-                    fetch('http://192.168.68.109:5000/generate-candlestick', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            data: data,
-                            ticker: tickerData[0]
-                        })
-                    })
-                        .then(response => response.json())
-                        .then(json => {
-                            const imageUrl = `http://192.168.68.109:5000${json.image_url}`;
-                            console.log(`Image URL: ${imageUrl}`)
-                            setCandlestickImage(imageUrl);
-                        })
-                        .then()
-                        .catch(error => console.error("Error fetching image:", error));
+                    const transformed = data
+                        .map(c => ({ timestamp: c[0], open: c[1], close: c[2], high: c[3], low: c[4] }))
+                        .sort((a, b) => a.timestamp - b.timestamp);
+                    setTransformedData(transformed);
+                    setLoading(false);
                 })
-
-                .catch(error => console.error("Error fetching candle data:", error));
+                .catch(() => setLoading(false));
         }
     }, [visible, tickerData]);
 
-    const transformDataForLineChart = (candlesData) => {
-        return candlesData.map(candle => ({
-            timestamp: candle[0],
-            open: candle[1],
-            close: candle[2],
-            high: candle[3],
-            low: candle[4],
-        }))
-            .sort((a, b) => a.timestamp - b.timestamp);
-    }
-
-    useEffect(() => {
-        // Call the transform function only when candleData changes.
-        const transformedData = transformDataForLineChart(candleData);
-        if (transformedData) {
-            setTransformedData(transformedData);
-        }
-    }, [candleData]);
-
-    if (!fontLoaded) {
-        return null;
-    }
+    const tickerSymbol = tickerData?.[0] ?? '';
+    const tickerName   = tickerData ? capitalizeFLetter(tickerSymbol.replace('t', '').replace('USD', '')) : '';
 
     return (
         <Modal
             visible={visible}
             animationType="slide"
-            transparent={true}
+            transparent
             onRequestClose={onClose}
         >
-            <View style={styles.centeredView}>
-                <View style={styles.modalView}>
-                    <Text style={styles.modalTitle}>Ticker Details</Text>
-                    {/* Display ticker details here. Adjust according to your data structure. */}
-                    <Text style={styles.modalTitle}>Selected Crypto: {capitalizeFLetter((ticker.ticker))}</Text>
-                    {/*
-                    {
-                        candlestickImage ?
-                            <Image source={{ uri: candlestickImage }
-                            } style={{ width: Dimensions.get("window").width - 10, height: 250 }} />
-                            :
-                            <Text>Loading Candlestick Chart...</Text>
-                    }
-                */}
-                    <CandlestickChart.Provider data={transformedData}>
-                        <CandlestickChart styles={styles.candleStickStyle}
-                            width={Dimensions.get("window").width - 16}
-                            height={100}>
-                            <CandlestickChart.Candles positiveColor='green'
-                                negativeColor='red' />
-                            <CandlestickChart.Crosshair>
-                                <CandlestickChart.Tooltip />
-                            </CandlestickChart.Crosshair>
-                            <CandlestickChart.PriceText type="open" />
-                            <CandlestickChart.PriceText type="close" />
-                            <CandlestickChart.PriceText type="high" />
-                            <CandlestickChart.PriceText type="low" />
-                            <CandlestickChart.DatetimeText />
-                        </CandlestickChart>
+            <View style={s.overlay}>
+                <View style={[s.modal, { backgroundColor: C.card, borderColor: C.cardBorder }]}>
+                    {/* Header */}
+                    <View style={[s.modalHeader, { borderBottomColor: C.separator }]}>
+                        <View>
+                            <Text style={{ fontSize: 16, fontWeight: '700', color: C.textPrimary, fontFamily: 'Inter' }}>
+                                {tickerSymbol}
+                            </Text>
+                            <Text style={{ fontSize: 12, color: C.textSecondary, fontFamily: 'Inter', marginTop: 2 }}>
+                                1h Chart
+                            </Text>
+                        </View>
+                        <TouchableOpacity onPress={onClose} activeOpacity={0.7} style={[s.closeX, { backgroundColor: C.surface }]}>
+                            <Text style={{ fontSize: 16, color: C.textSecondary, fontFamily: 'Inter' }}>✕</Text>
+                        </TouchableOpacity>
+                    </View>
 
-                    </CandlestickChart.Provider>
-                    {/* Close button */}
-                    <TouchableOpacity
-                        style={styles.closeButton}
-                        onPress={() => {
-                            navigation.navigate("TickerDetail", { tickerData: tickerData });
-                            onClose();  // close the modal after navigating, if needed
-                        }}
-                    >
-                        <Text style={styles.buttonText}>More details</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-                        <Text style={styles.buttonText}>Close</Text>
-                    </TouchableOpacity>
+                    {/* Chart */}
+                    <View style={[s.chartArea, { backgroundColor: C.surface }]}>
+                        {loading ? (
+                            <View style={s.loader}>
+                                <ActivityIndicator color={C.accent} />
+                            </View>
+                        ) : transformedData && transformedData.length > 0 ? (
+                            <CandlestickChart.Provider data={transformedData}>
+                                <CandlestickChart width={width - 56} height={160}>
+                                    <CandlestickChart.Candles
+                                        positiveColor={C.positive}
+                                        negativeColor={C.negative}
+                                    />
+                                    <CandlestickChart.Crosshair>
+                                        <CandlestickChart.Tooltip />
+                                    </CandlestickChart.Crosshair>
+                                </CandlestickChart>
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-around', paddingHorizontal: 8, paddingVertical: 6 }}>
+                                    <CandlestickChart.PriceText type="open"  style={{ color: C.textSecondary, fontSize: 11, fontFamily: 'Inter' }} />
+                                    <CandlestickChart.PriceText type="high"  style={{ color: C.positive,       fontSize: 11, fontFamily: 'Inter' }} />
+                                    <CandlestickChart.PriceText type="low"   style={{ color: C.negative,       fontSize: 11, fontFamily: 'Inter' }} />
+                                    <CandlestickChart.PriceText type="close" style={{ color: C.textPrimary,    fontSize: 11, fontFamily: 'Inter', fontWeight: '700' }} />
+                                </View>
+                            </CandlestickChart.Provider>
+                        ) : (
+                            <View style={s.loader}>
+                                <Text style={{ color: C.textMuted, fontFamily: 'Inter' }}>No chart data</Text>
+                            </View>
+                        )}
+                    </View>
+
+                    {/* Actions */}
+                    <View style={[s.actions, { borderTopColor: C.separator }]}>
+                        <TouchableOpacity
+                            style={[s.actionBtn, { borderColor: C.cardBorder, flex: 1 }]}
+                            onPress={onClose}
+                            activeOpacity={0.7}
+                        >
+                            <Text style={{ fontSize: 14, fontWeight: '600', color: C.textSecondary, fontFamily: 'Inter' }}>
+                                Close
+                            </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[s.actionBtn, { backgroundColor: C.accent, flex: 1 }]}
+                            onPress={() => {
+                                navigation.navigate('TickerDetail', { tickerData });
+                                onClose();
+                            }}
+                            activeOpacity={0.8}
+                        >
+                            <Text style={{ fontSize: 14, fontWeight: '700', color: '#000', fontFamily: 'Inter' }}>
+                                Full Details
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
             </View>
-        </Modal >
+        </Modal>
     );
-}
+};
 
-
-
-const styles = StyleSheet.create({
-    centeredView: {
+const s = StyleSheet.create({
+    overlay: {
         flex: 1,
+        justifyContent: 'flex-end',
+        backgroundColor: 'rgba(0,0,0,0.6)',
+    },
+    modal: {
+        borderTopLeftRadius: 16,
+        borderTopRightRadius: 16,
+        borderWidth: 1,
+        overflow: 'hidden',
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 20,
+        paddingVertical: 14,
+        borderBottomWidth: 1,
+    },
+    closeX: {
+        width: 32, height: 32, borderRadius: 16,
+        alignItems: 'center', justifyContent: 'center',
+    },
+    chartArea: {
+        paddingVertical: 8,
+    },
+    loader: {
+        height: 160,
+        alignItems: 'center',
         justifyContent: 'center',
+    },
+    actions: {
+        flexDirection: 'row',
+        gap: 10,
+        padding: 16,
+        borderTopWidth: 1,
+    },
+    actionBtn: {
+        paddingVertical: 13,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: 'transparent',
         alignItems: 'center',
-        marginTop: 22,
+        justifyContent: 'center',
     },
-    modalView: {
-        fontFamily: 'Inter',
-        color: 'white',
-        backgroundColor: '#222C33',
-        margin: 20,
-        borderRadius: 20,
-        padding: 35,
-        alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: {
-            width: 0,
-            height: 2
-        },
-        shadowOpacity: 0.25,
-        shadowRadius: 4,
-        elevation: 5,
-    },
-    modalTitle: {
-        fontFamily: 'Inter',
-        color: 'white',
-        fontSize: 20,
-        marginBottom: 15,
-        textAlign: 'center',
-    },
-
-    CloseButton: {
-
-    },
-    buttonText: {
-        marginTop: 20,
-        color: 'white',
-        textAlign: 'center',
-        padding: 10,
-        borderWidth: 0.5,
-        borderRadius: 10,
-        backgroundColor: '#4CAF50'
-    },
-    candleStickStyle: {
-        backgroundColor: '#152330'
-    }
 });
 
 export default TickerModal;
