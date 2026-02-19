@@ -9,11 +9,15 @@ import darkTheme from './themes/darkTheme';
 
 export default function Main() {
     const [fontLoaded, setFontLoaded] = useState(false);
-    const [theme, setTheme] = useState(lightTheme);  // default to light theme
+    const [theme, setTheme] = useState(darkTheme);  // default to dark theme
 
-    // Toggle theme function
-    const toggleTheme = () => {
-        setTheme(prevTheme => prevTheme === lightTheme ? darkTheme : lightTheme);
+    // Toggle theme — can be called with no arg (flip) or a specific theme
+    const toggleTheme = (specificTheme) => {
+        if (specificTheme && (specificTheme === lightTheme || specificTheme === darkTheme)) {
+            setTheme(specificTheme);
+        } else {
+            setTheme(prev => prev === lightTheme ? darkTheme : lightTheme);
+        }
     };
 
     useEffect(() => {

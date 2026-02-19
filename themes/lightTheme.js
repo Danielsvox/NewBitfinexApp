@@ -1,212 +1,286 @@
 import { Dimensions } from 'react-native';
-import { Color, FontSize, FontFamily } from "../GlobalStyles";
+import { FontFamily, Palette, shadow } from '../GlobalStyles';
+
 const { width, height } = Dimensions.get('window');
+const C = Palette.light;
 
 const lightTheme = {
+    _colors: C,
+
+    // ─── Screens ──────────────────────────────────────────────────────────────
     container: {
         flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
+        backgroundColor: C.background,
     },
     view: {
         flex: 1,
-        //backgroundColor: '#152330'
-    },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: height * 0.01, // 1% of screen height
+        backgroundColor: C.background,
     },
 
-    icon: {
-        width: 30, // Or appropriate size
-        height: 30, // Or appropriate size
-    },
-    home: {
-        fontSize: 16,
-        fontWeight: "600",
-        textAlign: "center",
-        fontFamily: FontFamily.Inter,
-        letterSpacing: 1,
-        color: Color.colorGray_200,
-    },
-    balanceText: {
-        padding: 5,
-        alignItems: 'flex-start', // Aligns children to the start
-    },
-    text1: {
-        padding: 5,
-        fontSize: 30,
-        fontWeight: "500",
-        textAlign: "left",
-
-        color: Color.colorGray_200,
-        fontFamily: FontFamily.sFProText,
-        letterSpacing: 1,
-    },
-    textFlexBox: {
-        textAlign: "left",
-        left: "1%",
+    // ─── Balance header ───────────────────────────────────────────────────────
+    text: {
+        paddingHorizontal: 20,
+        paddingTop: height * 0.06,
+        paddingBottom: 4,
     },
     totalBalance: {
-        padding: 5,
-        left: '1%',
-        color: Color.colorGray_100,
-        fontSize: FontSize.size_xs,
-        textAlign: "left",
-        fontWeight: "500",
-        fontFamily: FontFamily.sFProText,
-        letterSpacing: 1,
+        color: C.textMuted,
+        fontSize: 11,
+        fontFamily: FontFamily.Inter,
+        letterSpacing: 1.2,
+        textTransform: 'uppercase',
+        marginBottom: 4,
     },
+    text1: {
+        color: C.textPrimary,
+        fontSize: 32,
+        fontWeight: '700',
+        fontFamily: FontFamily.Inter,
+        letterSpacing: -0.5,
+        fontVariant: ['tabular-nums'],
+    },
+    textFlexBox: {
+        textAlign: 'left',
+    },
+
+    // ─── Horizontal ticker cards ──────────────────────────────────────────────
     scrollView: {
-        flex: 1, // Take the remaining available space
+        flexGrow: 0,
     },
     section: {
-        flexDirection: 'row', // To layout cards horizontally
-        overflow: 'scroll', // To allow scrolling
+        flexDirection: 'row',
+        paddingHorizontal: 16,
+        paddingVertical: 8,
     },
     card: {
-        width: width * 0.7, // 60% of screen width
-        height: height * 0.32, // 25% of screen height
-        margin: width * 0.02, // 2% of screen width
-        backgroundColor: '#fff',
+        width: width * 0.52,
+        height: height * 0.22,
+        marginRight: 10,
+        backgroundColor: C.card,
         borderRadius: 8,
-        elevation: 3,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: height * 0.005 }, // 0.5% of screen height
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
+        borderWidth: 1,
+        borderColor: C.cardBorder,
+        overflow: 'hidden',
+        ...shadow,
+        shadowOpacity: 0.06,
     },
     topSection: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: height * 0.01,
+        paddingHorizontal: 12,
+        paddingTop: 12,
+        paddingBottom: 4,
     },
     logo: {
-        width: width * 0.1, // 10% of screen width
-        height: width * 0.1, // keeping it square
-        borderRadius: width * 0.05, // half of logo width
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        backgroundColor: C.background,
     },
     tokenName: {
-        marginLeft: 10,
-        fontSize: 16,
-        fontWeight: 'bold',
+        marginLeft: 8,
+        fontSize: 13,
+        fontWeight: '600',
+        color: C.textPrimary,
+        fontFamily: FontFamily.Inter,
+        flex: 1,
     },
     graphPlaceholder: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        padding: 20, // Padding to ensure the graph does not touch the edges of the card
+        paddingHorizontal: 8,
+    },
+    lineChart: {
+        flex: 1,
     },
     bottomSection: {
-        padding: 10,
+        paddingHorizontal: 12,
+        paddingBottom: 12,
     },
     dailyVolume: {
-        fontSize: 14,
-        color: 'green',
+        fontSize: 15,
+        fontWeight: '700',
+        color: C.textPrimary,
+        fontFamily: FontFamily.Inter,
+        fontVariant: ['tabular-nums'],
     },
     lastTradedPrice: {
-        fontSize: 14,
+        fontSize: 11,
+        color: C.textSecondary,
+        marginTop: 2,
+        fontFamily: FontFamily.Inter,
     },
-    scrollSelections: {
-        flex: 1,
-        height: height * 0.2,
 
+    // ─── Section pill tabs (Binance underline style) ──────────────────────────
+    scrollSelections: {
+        flexGrow: 0,
+        paddingHorizontal: 16,
+        paddingVertical: 0,
+        borderBottomWidth: 1,
+        borderBottomColor: C.separator,
     },
     selections: {
-        width: width * 0.2, // 20% of screen width
-        height: height * 0.05, // 5% of screen height
-        margin: width * 0.02,
-        backgroundColor: '#fff',
-        borderRadius: 8,
-        elevation: 3,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: height * 0.005 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        justifyContent: "center",
-        alignItems: "center"
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        marginRight: 4,
+        backgroundColor: 'transparent',
+        borderRadius: 0,
+        borderWidth: 0,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     selectionsText: {
+        color: C.textSecondary,
+        fontSize: 13,
+        fontWeight: '500',
         fontFamily: FontFamily.Inter,
     },
     selectedSelection: {
-        backgroundColor: '#2C66CB', // Replace 'yourSelectedColor' with the desired color for the selected section
+        backgroundColor: 'transparent',
+        borderBottomWidth: 2,
+        borderBottomColor: C.accent,
     },
     selectedSelectionText: {
-        color: 'white',
+        color: C.accent,
+        fontWeight: '600',
     },
     contentArea: {
-        flex: 1, // Takes up remaining vertical space
-        marginTop: -200, // or an appropriate value
+        flex: 1,
     },
 
-
+    // ─── Ticker list (TickerComponent) ────────────────────────────────────────
     scrollViewTickers: {
-        padding: 5
+        paddingHorizontal: 0,
+        paddingTop: 0,
     },
     moversCard: {
-        backgroundColor: '#fff',
-        borderRadius: 15,
-        padding: 15,
-        marginBottom: 10,
-        shadowColor: "#000",
-        shadowOffset: {
-            width: 0,
-            height: 2,
-        },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
-        elevation: 5,
+        backgroundColor: C.card,
+        borderRadius: 0,
+        paddingHorizontal: 16,
+        paddingVertical: 13,
+        marginBottom: 0,
+        borderBottomWidth: 1,
+        borderBottomColor: C.separator,
     },
     title: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        padding: 10
+        fontSize: 14,
+        fontWeight: '600',
+        color: C.textPrimary,
+        fontFamily: FontFamily.Inter,
+        marginLeft: 10,
     },
     topSectionTickers: {
-        alignItems: "center",
         flexDirection: 'row',
-        padding: height * 0.01,
-        justifyContent: "space-between"
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    percentageChange: {
+        fontSize: 13,
+        fontWeight: '600',
+        fontFamily: FontFamily.Inter,
+        fontVariant: ['tabular-nums'],
     },
     positiveValue: {
-        color: 'green',
-        fontSize: 18,
-        fontWeight: 'bold',
+        color: C.positive,
+        fontSize: 13,
+        fontWeight: '600',
     },
     negativeValue: {
-        color: 'red',
-        fontSize: 18,
-        fontWeight: 'bold',
+        color: C.negative,
+        fontSize: 13,
+        fontWeight: '600',
     },
 
+    // ─── News ─────────────────────────────────────────────────────────────────
     scrollViewNews: {
-        padding: 5
+        paddingHorizontal: 16,
+        paddingTop: 8,
     },
     newsCard: {
-        backgroundColor: '#fff',
-        borderRadius: 15,
-        padding: 15,
-        marginBottom: 10,
-        shadowColor: "#000",
-        shadowOffset: {
-            width: 0,
-            height: 2,
-        },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
-        elevation: 5,
+        backgroundColor: C.card,
+        borderRadius: 8,
+        padding: 14,
+        marginBottom: 8,
+        borderWidth: 1,
+        borderColor: C.cardBorder,
+        borderLeftWidth: 3,
+        borderLeftColor: C.accent,
     },
     titleNews: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        marginBottom: 5,
+        fontSize: 14,
+        fontWeight: '600',
+        color: C.textPrimary,
+        fontFamily: FontFamily.Inter,
+        marginBottom: 6,
+        lineHeight: 20,
     },
     snippet: {
-        fontSize: 14,
-    }
+        p:    { color: C.textSecondary, fontSize: 13, lineHeight: 20, margin: 0 },
+        a:    { color: C.accent },
+        body: { margin: 0, padding: 0 },
+    },
 
+    // ─── Account screen ───────────────────────────────────────────────────────
+    accountContainer: {
+        flex: 1,
+        backgroundColor: C.background,
+        paddingHorizontal: 0,
+        paddingTop: height * 0.06,
+    },
+    accountTitle: {
+        fontSize: 22,
+        fontWeight: '700',
+        color: C.textPrimary,
+        fontFamily: FontFamily.Inter,
+        marginBottom: 20,
+        paddingHorizontal: 20,
+    },
+    settingsRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        backgroundColor: C.card,
+        borderRadius: 0,
+        paddingHorizontal: 20,
+        paddingVertical: 16,
+        borderWidth: 0,
+        borderBottomWidth: 1,
+        borderBottomColor: C.separator,
+        marginBottom: 0,
+    },
+    settingsLabel: {
+        fontSize: 14,
+        color: C.textPrimary,
+        fontFamily: FontFamily.Inter,
+        fontWeight: '500',
+    },
+    settingsSub: {
+        fontSize: 12,
+        color: C.textSecondary,
+        marginTop: 2,
+        fontFamily: FontFamily.Inter,
+    },
+
+    // ─── Shared utils ─────────────────────────────────────────────────────────
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        backgroundColor: C.background,
+        borderBottomWidth: 1,
+        borderBottomColor: C.separator,
+    },
+    icon: { width: 30, height: 30 },
+    home: {
+        fontSize: 15,
+        fontWeight: '600',
+        textAlign: 'center',
+        fontFamily: FontFamily.Inter,
+        color: C.textPrimary,
+    },
 };
+
 export default lightTheme;

@@ -1,132 +1,102 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
-import { Icon } from "react-native-elements";
+import { Icon } from 'react-native-elements';
 import NewsDetailScreen from './NewsDetailScreen';
-
 import TickerDetailScreen from './TickerDetailScreen';
-import Home from './Home'
-import Markets from './MarketsScreen'
+import TradeScreen from './TradeScreen';
+import DepositScreen from './DepositScreen';
+import Home from './Home';
+import Markets from './MarketsScreen';
 import AccountScreen from './Account';
+import WalletScreen from './WalletScreen';
 import ThemeContext from './themes/ThemeContext';
 import darkTheme from './themes/darkTheme';
+import { Palette } from './GlobalStyles';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
-//Stack navigator for home screen
+const HomeScreen = () => (
+    <Stack.Navigator initialRouteName="HomeInner">
+        <Stack.Screen name="HomeInner" component={Home} options={{ headerShown: false }} />
+        <Stack.Screen name="TickerDetail" component={TickerDetailScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="Trade" component={TradeScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="NewsDetail" component={NewsDetailScreen} options={{ headerShown: false }} />
+    </Stack.Navigator>
+);
 
-const HomeScreen = () => {
-    return (
-        <Stack.Navigator initialRouteName="HomeInner">
-            <Stack.Screen
-                name="HomeInner"
-                component={Home}
-                options={{ headerShown: false, headerTitle: '' }}
-            />
-            <Stack.Screen
-                name="TickerDetail"
-                component={TickerDetailScreen}
-                options={{ headerShown: false, headerTitle: '' }}
-            />
-            <Stack.Screen
-                name="NewsDetail"
-                component={NewsDetailScreen}
-                options={{ headerShown: false, headerTitle: '' }}
-            />
-        </Stack.Navigator>
-    );
+const MarketsStack = () => (
+    <Stack.Navigator initialRouteName="MarketsInner">
+        <Stack.Screen name="MarketsInner" component={Markets} options={{ headerShown: false }} />
+        <Stack.Screen name="TickerDetail" component={TickerDetailScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="Trade" component={TradeScreen} options={{ headerShown: false }} />
+    </Stack.Navigator>
+);
+
+const WalletsStack = () => (
+    <Stack.Navigator initialRouteName="WalletInner">
+        <Stack.Screen name="WalletInner" component={WalletScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="Deposit" component={DepositScreen} options={{ headerShown: false }} />
+    </Stack.Navigator>
+);
+
+const AccountStack = () => (
+    <Stack.Navigator initialRouteName="AccountInner">
+        <Stack.Screen name="AccountInner" component={AccountScreen} options={{ headerShown: false }} />
+    </Stack.Navigator>
+);
+
+const TAB_ICONS = {
+    Home:    { name: 'home',                type: 'material-community' },
+    Markets: { name: 'chart-bar',           type: 'material-community' },
+    Wallet:  { name: 'wallet-outline',      type: 'material-community' },
+    Account: { name: 'account-circle-outline', type: 'material-community' },
 };
-
-// Stack Navigator for Markets
-const MarketsStack = () => {
-    return (
-        <Stack.Navigator initialRouteName="MarketsInner">
-            <Stack.Screen
-                name="MarketsInner"
-                component={Markets}
-                options={{ headerShown: false, headerTitle: '' }}
-            />
-            <Stack.Screen
-                name="TickerDetail"
-                component={TickerDetailScreen}
-                options={{ headerShown: false, headerTitle: '' }}
-            />
-        </Stack.Navigator>
-    );
-};
-
-
-const WalletsScreen = () => {
-    // TODO: Implement Wallets Screen
-    return (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-            <Text>Wallet Screen</Text>
-        </View>
-    );
-};
-
-const AccountStack = () => {
-    // TODO: Implement Account Screen
-    return (
-        <Stack.Navigator initialRouteName="AccountInner">
-            <Stack.Screen
-                name="AccountInner"
-                component={AccountScreen}
-                options={{ headerShown: false, headerTitle: '' }}
-
-            />
-        </Stack.Navigator>
-    );
-};
-
-// ... your screen components like HomeScreen, MarketsStack, etc ...
 
 const MainNavigator = () => {
     const { theme } = React.useContext(ThemeContext);
-
     const isDark = theme === darkTheme;
+    const C = isDark ? Palette.dark : Palette.light;
 
     return (
         <Tab.Navigator
-            initialRouteName="Account"
+            initialRouteName="Home"
             screenOptions={({ route }) => ({
-                tabBarIcon: ({ focused, size }) => {
-                    let iconName;
-                    let iconColor;
-
-                    if (route.name === 'Home') {
-                        iconName = 'home';
-                        iconColor = focused ? (isDark ? '#4CAF50' : '#1976D2') : (isDark ? 'white' : 'black');
-                    } else if (route.name === 'Markets') {
-                        iconName = 'chart-line-variant';
-                        iconColor = focused ? (isDark ? '#FFC107' : '#FF5722') : (isDark ? 'white' : 'black');
-                    } else if (route.name === 'Wallet') {
-                        iconName = 'wallet';
-                        iconColor = focused ? (isDark ? '#E91E63' : '#9C27B0') : (isDark ? 'white' : 'black');
-                    } else if (route.name === 'Account') {
-                        iconName = 'account';
-                        iconColor = focused ? (isDark ? '#03A9F4' : '#8BC34A') : (isDark ? 'white' : 'black');
-                    }
-
-                    return <Icon name={iconName} size={size} color={iconColor} type={'material-community'} />;
-                },
-                tabBarActiveTintColor: isDark ? 'white' : 'black',
-                tabBarInactiveTintColor: isDark ? 'lightgrey' : 'grey',
+                headerShown: false,
+                tabBarIcon: ({ focused, size }) => (
+                    <Icon
+                        name={TAB_ICONS[route.name].name}
+                        size={22}
+                        color={focused ? C.accent : C.textMuted}
+                        type={TAB_ICONS[route.name].type}
+                    />
+                ),
+                tabBarActiveTintColor: C.accent,
+                tabBarInactiveTintColor: C.textMuted,
                 tabBarStyle: {
-                    display: 'flex',
-                    backgroundColor: isDark ? '#1c1c1e' : 'white'
+                    backgroundColor: C.tabBar,
+                    borderTopWidth: 1,
+                    borderTopColor: C.separator,
+                    paddingTop: 6,
+                    paddingBottom: 8,
+                    height: 58,
+                },
+                tabBarLabelStyle: {
+                    fontSize: 10,
+                    fontFamily: 'Inter',
+                    fontWeight: '600',
+                    marginTop: 2,
                 },
             })}
         >
             <Tab.Screen name="Home" component={HomeScreen} />
             <Tab.Screen name="Markets" component={MarketsStack} />
-            <Tab.Screen name="Wallet" component={WalletsScreen} />
+            <Tab.Screen name="Wallet" component={WalletsStack} />
             <Tab.Screen name="Account" component={AccountStack} />
         </Tab.Navigator>
     );
 };
-
 
 export default MainNavigator;
