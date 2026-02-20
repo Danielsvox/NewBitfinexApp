@@ -15,12 +15,14 @@ def transform_data(tickers_dict):
     transformed_data = []
     for key_tuple, value in tickers_dict.items():
         ticker_data = {
-            "ticker": key_tuple[0],
-            "baseCurrency": key_tuple[1],
-            "quoteCurrency": key_tuple[2],
-            "verboseName": key_tuple[3],
-            # Convert the dataclass instance to a dictionary
-            "tickerData": vars(value)
+            "ticker":          key_tuple[0],
+            "baseCurrency":    key_tuple[1],
+            "quoteCurrency":   key_tuple[2],
+            "verboseName":     key_tuple[3],
+            # List of quote currencies available for trading this asset,
+            # e.g. ["USD"], ["USDT"], or ["USD", "USDT"]
+            "availableQuotes": list(key_tuple[4]) if len(key_tuple) > 4 else ["USD"],
+            "tickerData":      vars(value),
         }
         transformed_data.append(ticker_data)
     return transformed_data
