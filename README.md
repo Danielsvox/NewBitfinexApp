@@ -35,6 +35,49 @@ Ensure you have [Node.js](https://nodejs.org/) and [Expo CLI](https://expo.dev/t
 
    This will open a new window in your default web browser displaying a QR code. Scan this QR code with the Expo Go app on your Android or iOS device to see the live app in action.
 
+## Backend server
+
+The backend is a **Flask** (Python) API that serves Bitfinex ticker data and logo images. It runs on `http://0.0.0.0:5000` by default.
+
+### Backend prerequisites
+
+- **Python 3.8+** (3.9 or 3.10 recommended)
+- **pip** (usually included with Python)
+
+### Backend installation
+
+1. Open a terminal and go to the backend folder:
+   ```bash
+   cd backend
+   ```
+
+2. (Recommended) Create and activate a virtual environment:
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate   # On macOS/Linux
+   # On Windows: venv\Scripts\activate
+   ```
+
+3. Install dependencies from `requirements.txt`:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+### Running the backend server
+
+From the `backend` directory (with your venv activated if you use one):
+
+```bash
+python main.py
+```
+
+The server will start in debug mode on **http://0.0.0.0:5000**. Available endpoints include:
+
+- `GET /get-tickers` – Bitfinex ticker data
+- `GET /backend/logos/<filename>` – Logo images from the `backend/logos` folder
+
+Make sure the Expo app is configured to use this base URL (e.g. `http://<your-machine-ip>:5000`) when calling the API.
+
 ## Notes & Observations
 
 - **News Component Spacing**: The space between the section selection tabs and the news content seemed a bit excessive during reviews. Possible reasons and solutions were explored, including checking internal component styling and redundant rendering.
